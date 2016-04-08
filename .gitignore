@@ -1,4 +1,4 @@
-*/.git
+*/.git/
 # Object files
 *.o
 *.ko
