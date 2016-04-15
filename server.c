@@ -18,6 +18,7 @@ int split( char **result, char *working, const char *src, const char *delim){
 
 	strcpy(working, src); // working will get chppped up instead of src 
 	char *p=strtok(working, delim);
+
 	for(i=0; p!=NULL && i < (MX_SPLIT -1); i++, p=strtok(NULL, delim) ){
 		result[i]=p;
 		result[i+1]=NULL;  // mark the end of result array
@@ -32,6 +33,7 @@ int main(){
 	int bufsize = 2048000;
 	char *buffer = malloc(bufsize);
 	struct sockaddr_in address;
+
 	if ((create_socket = socket(AF_INET, SOCK_STREAM, 0)) > 0){
 		printf("The socket was created\n");
 	}
@@ -44,6 +46,7 @@ int main(){
 		printf("Binding Socket\n");
 	} else {
 		printf("%s\n", "Can not bind to socket!");
+		exit(1);
 	}
 
 	// loop waiting for client to connect
@@ -64,25 +67,45 @@ int main(){
 
 		// parse body out of request
 		recv(new_socket, buffer, bufsize, 0);
+
+		printf("len: %zu, size: %d\n", strlen(buffer), bufsize);
+
 		char *result[MX_SPLIT]={NULL};
-		char working[500]={0x0};
+		char working[1500]={0x0};
 		char mydelim[]="\n\n";
 		int splitLen;
 
 		splitLen = split(result, working, buffer, mydelim);
 
+		printf("body: %s\n\n", result[splitLen-1]);
 		// parse JSON
 		char *json=result[splitLen-1];
-		cJSON * root = cJSON_Parse(json);
-		char * code = cJSON_GetObjectItem(root, "code")->valuestring;
+		cJSON *root = cJSON_Parse(json);
+		char *code = cJSON_GetObjectItem(root, "code")->valuestring;
 
-		// set up code string for POPEN
-		char codeToRun[strlen(code)+41];
-		strcpy(codeToRun, "echo \"");
-		strcat(codeToRun, code);
-		strcat(codeToRun, "\"|base64 --decode| bash | base64");
+		// write code to file
+		FILE *codeFile = fopen("/home/william/code", "w");
+		if (f == NULL)
+		{
+			printf("Error opening file!\n");
+			exit(1);
+		}
+		fprintf(codeFile, "%s", code);
+		fclose(codeFile);
 
-		printf("%s\n", codeToRun);
+		
+		printf("code: %s\n", code);
+
+		/*set up code string for POPEN
+		char codeToRun[strlen(code)+15];
+		strcpy(codeToRun, code);
+		strcat(codeToRun, " 2>&1|base64");*/
+
+		char codeToRun[60] = "/bin/cat /home/william/code|/bin/bash 2>&1|/usr/bin/base64";
+
+
+
+		printf("codeToRun$ %s\n==========\n", codeToRun);
 
 		// set up POPEN
 		FILE *fp;
@@ -112,20 +135,24 @@ int main(){
 				}
 				line = tmp;
 			}
-
+			if(ch == '\n'){
+				continue;
+			}
 			/* Actually store the thing. */
 			line[index++] = ch;
 		}
+		printf("%d\n",pclose(fp));
+
+		printf("send to client: %s\n", line);
 
 		// we should check this
-		// status = pclose(fp);
 
 		// Format JSON response
-		char rex[strlen(line)+11];
-		strcpy(rex,"{\"res\":\"");
+		char rex[strlen(line)+35];
+		strcpy(rex, "HTTP/1.0 200 OK\n\n");
+		strcat(rex,"{\"res\":\"");
 		strcat(rex, line);
 		strcat(rex,"\"}");
-
 		// send response to client
 		write(new_socket, rex, strlen(rex));    
 		close(new_socket);
