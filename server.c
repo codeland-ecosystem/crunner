@@ -13,6 +13,7 @@ int main(){
 	int create_socket, new_socket;
 	socklen_t addrlen;
 	int bufsize = 2048000;
+	int port = atoi( (getenv("runnerPort") != NULL) ? getenv("runnerPort") : "15000" );
 	char *buffer = malloc(bufsize);
 	struct sockaddr_in address;
 
@@ -22,10 +23,10 @@ int main(){
 
 	address.sin_family = AF_INET;
 	address.sin_addr.s_addr = INADDR_ANY;
-	address.sin_port = htons(15003);
+	address.sin_port = htons(port);
 
 	if (bind(create_socket, (struct sockaddr *) &address, sizeof(address)) == 0){
-		printf("Binding Socket\n");
+		printf("Binding Socket on port %i\n", port);
 	} else {
 		printf("%s\n", "Can not bind to socket!");
 		exit(1);
