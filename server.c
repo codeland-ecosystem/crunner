@@ -50,8 +50,11 @@ int main(){
 		// read content from socket
 		recv(new_socket, buffer, bufsize, 0);
 
+		// tell the client to wait for a response
+		write(new_socket, "HTTP/1.1 100 Continue\r\n", 28);
+
 		// parse body out of request
-		char* body = strstr(buffer,"\r\n\r\n");
+		char *body = strstr(buffer,"\r\n\r\n");
 
 		// parse code from the json
 		cJSON *root = cJSON_Parse(body);
@@ -103,11 +106,23 @@ int main(){
 		printf("%d\n",pclose(fp));
 
 		// Format JSON response
-		char rex[strlen(line)+35];
-		strcpy(rex, "HTTP/1.0 200 OK\n\n");
-		strcat(rex,"{\"res\":\"");
-		strcat(rex, line);
-		strcat(rex,"\"}");
+		char rjson[strlen(line)+20];
+		strcpy(rjson,"{\"res\":\"");
+		strcat(rjson, line);
+		strcat(rjson,"\"}\0");
+		
+		int rjsonLength = strlen(rjson)+0;
+		char rjsonLength_char[20];
+		sprintf(rjsonLength_char, "%d", rjsonLength);
+		
+		// format headers and add body
+		char rex[rjsonLength+105];
+		strcpy(rex, "HTTP/1.0 200 OK\r\n");
+		strcat(rex, "Content-Type: application/json\r\n");
+		strcat(rex, "Content-Length: ");
+		strcat(rex, rjsonLength_char);
+		strcat(rex, "\r\n\r\n");
+		strcat(rex, rjson);
 
 		// send response to client
 		write(new_socket, rex, strlen(rex));    
