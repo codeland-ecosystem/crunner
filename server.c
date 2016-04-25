@@ -52,7 +52,7 @@ int main(){
 		recv(new_socket, buffer, bufsize, 0);
 
 		// tell the client to wait for a response
-		write(new_socket, "HTTP/1.0 100 Continue\r\n", 28);
+		// write(new_socket, "HTTP/1.0 100 Continue\r\n", 28);
 
 		// parse body out of request
 		char *body = strstr(buffer,"\r\n\r\n");
