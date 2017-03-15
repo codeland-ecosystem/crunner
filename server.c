@@ -125,7 +125,7 @@ int main(){
 
 		// parse code from the json
 		cJSON *root = cJSON_Parse(body);
-		printf("body %c:\n%s\n", body[0], body);
+		// printf("body %c:\n%s\n", body[0], body);
 
 		char *code = cJSON_GetObjectItem(root, "code")->valuestring;
 
