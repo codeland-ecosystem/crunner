@@ -10,7 +10,7 @@
 #include "cJSON/cJSON.h"
 
 int main(){
-	printf("crunner v4");
+	printf("crunner v4\n");
 	int create_socket, new_socket;
 	socklen_t addrlen;
 	int port = atoi( (getenv("runnerPort") != NULL) ? getenv("runnerPort") : "15000" );
