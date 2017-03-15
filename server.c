@@ -54,8 +54,8 @@ int main(){
 		char end[4];
 		int parsePassed = 1;
 		while(1) { //client receiving code
-	        printf("while...");
-	        
+	        printf("while...\n");
+
 	        if((numbytes = recv(new_socket, buffer, bufsize, 0)) == -1){
 	            printf("recv error: %d", numbytes);
 	            exit(1);
