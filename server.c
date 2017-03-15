@@ -78,7 +78,7 @@ int main(){
 	        printf("numbytes is %d, full length is %d\n", numbytes, conlen);
 	        // printf("end is: %s\n", end);
 	        // printf("last char, %d, %d, %d\n", buffer[numbytes-1], buffer[numbytes], buffer[numbytes+1]);
-	        // printf("received:\n%s\n", buffer);
+	        printf("received:\n%s\n", buffer);
 
         	if(conlen == 0){
         		printf("zero length POST");
@@ -86,7 +86,7 @@ int main(){
         		break;
         	}
 
-	        if(numbytes == 0 || ( conlen < numbytes && end != "\r\n\r\n")){
+	        if(numbytes == 0 || end != "\r\n\r\n"){
 	        	break;
 	        }
 	    }
