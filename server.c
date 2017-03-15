@@ -13,7 +13,7 @@ int main(){
 	printf("crunner v4\n");
 	int create_socket, new_socket;
 	socklen_t addrlen;
-	int port = atoi( (getenv("runnerPort") != NULL) ? getenv("runnerPort") : "15000" );
+	int port = atoi( (getenv("runnerPort") != NULL) ? getenv("runnerPort") : "15001" );
 	struct sockaddr_in address;
 
 	if ((create_socket = socket(AF_INET, SOCK_STREAM, 0)) > 0){
@@ -54,13 +54,15 @@ int main(){
 		int conlen = 0;
 		char end[4];
 		int parsePassed = 1;
+		char *bufferPosition = buffer;
 		while(1) { //client receiving code
 	        printf("while...\n");
 
-	        if((numbytes = recv(new_socket, buffer, bufsize, 0)) == -1){
+	        if((numbytes = recv(new_socket, bufferPosition, bufsize, 0)) == -1){
 	            printf("recv error: %d", numbytes);
 	            exit(1);
 	        }
+	        bufferPosition += numbytes;
 	        if(conlen == 0){
 	        	char* pcontent = strstr((char*)buffer,"Content-Length:");
 	        	    // get the length of the data
@@ -86,12 +88,20 @@ int main(){
         		break;
         	}
 
-	        if(numbytes == 0 || end != "\r\n\r\n"){
+        	if(end == "\r\n\r\n"){
+        		printf("end is 2 new lines, getting more");
+        		continue;
+        	}
+
+	        if(numbytes == 0 || (end != "\r\n\r\n" && numbytes >= conlen)){
+	        	printf("done with message");
 	        	break;
 	        }
+	        printf("should not get here...");
 	    }
 
 	    if(parsePassed == 0 || end == "\r\n\r\n"){
+	    	printf("error in request");
 	    	close(new_socket);
 	    	continue;
 	    }
@@ -172,7 +182,7 @@ int main(){
 
 		// clear buffer for next request
 		fflush(fp);
-		printf("%d\n",pclose(fp));
+		printf("\npopen code: %d\n",pclose(fp));
 
 		// Format JSON response
 		char rjson[strlen(line)+20];
