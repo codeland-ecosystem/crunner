@@ -57,42 +57,42 @@ int main(){
 		char *bufferPosition = buffer;
 		while(1) { //client receiving code
 			printf("while...\n");
-	        	if((numbytes = recv(new_socket, bufferPosition, bufsize, 0)) == -1){
-	            		printf("recv error: %d", numbytes);
-	            		exit(1);
-	        	}
+			if((numbytes = recv(new_socket, bufferPosition, bufsize, 0)) == -1){
+				printf("recv error: %d", numbytes);
+				exit(1);
+			}
 
-	        	bufferPosition += numbytes;
-                        end[0] = buffer[numbytes-4];
-                        end[1] = buffer[numbytes-3];
-                        end[2] = buffer[numbytes-2];
-                        end[3] = buffer[numbytes-1];
+			bufferPosition += numbytes;
+				end[0] = buffer[numbytes-4];
+				end[1] = buffer[numbytes-3];
+				end[2] = buffer[numbytes-2];
+				end[3] = buffer[numbytes-1];
 
-	        	if(conlen == 0){
-	        		char* pcontent = strstr((char*)buffer,"Content-Length:");
-	        	    	// get the length of the data
-	        		conlen = atoi(pcontent+15);
-	        	}
+			if(conlen == 0){
+				char* pcontent = strstr((char*)buffer,"Content-Length:");
+					// get the length of the data
+				conlen = atoi(pcontent+15);
+			}
 
-	        	// buffer[numbytes] = '\0';
-	        	printf("recived bytes is %d, full content length is %d, buffersize is %d\n", numbytes, conlen, bufferPosition);
+			// buffer[numbytes] = '\0';
+			printf("recived bytes is %d, full content length is %d, total received is %d\n", numbytes, conlen, recvlen);
 			printf("end # %d, %d, %d, %d\n", end[0], end[1], end[2], end[3]);
-	        	// printf("end is: %s\n", end);
-	        	// printf("last char, %d, %d, %d\n", buffer[numbytes-1], buffer[numbytes], buffer[numbytes+1]);
-	        	printf("received:\n%s\n", buffer);
+			// printf("end is: %s\n", end);
+			// printf("last char, %d, %d, %d\n", buffer[numbytes-1], buffer[numbytes], buffer[numbytes+1]);
+			printf("received:\n%s\n", buffer);
 
 			// printf("checking len\n");
-        		if(conlen == 0){
-        			printf("zero length POST\n");
-        			parsePassed = 0;
-        			break;
-        		}
+			if(conlen == 0){
+				printf("zero length POST\n");
+				parsePassed = 0;
+				break;
+			}
 
 			// printf("checking end\n");
-        		if(strncmp(end, "\r\n\r\n", 4) == 0){
-        			printf("end is 2 new lines, getting more\n");
-        			continue;
-        		}
+			if(strncmp(end, "\r\n\r\n", 4) == 0){
+				printf("end is 2 new lines, getting more\n");
+				continue;
+			}
 
 			if(numbytes >= conlen){
 				printf("seemd to be done\n");
@@ -100,20 +100,20 @@ int main(){
 			}
 
 			// printf("checking numbytes and len\n");
-	        	if(numbytes == 0 || numbytes >= conlen){
-	        		printf("done with message\n");
-	        		break;
-	        	}
-	        	printf("should not get here...");
-	    }
+			if(numbytes == 0 || numbytes >= conlen){
+				printf("done with message\n");
+				break;
+			}
+			printf("should not get here...");
+		}
 
-	    if(parsePassed == 0 || strncmp(buffer, "\r\n\r\n", 4) == 0){
-	    	printf("error in request");
-	    	close(new_socket);
-	    	continue;
-	    }
+		if(parsePassed == 0 || strncmp(buffer, "\r\n\r\n", 4) == 0){
+			printf("error in request");
+			close(new_socket);
+			continue;
+		}
 
-	    // printf("buffer:\n%s", buffer);
+		// printf("buffer:\n%s", buffer);
 		// printf("buffer before:\n%s", buffer);
 		// read content from socket
 		// ssize_t n;
