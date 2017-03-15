@@ -51,8 +51,11 @@ int main(){
 		int numbytes;
 		int recvlen = 0;
 		int conlen = 0;
+		char end[4];
+		int parsePassed = 1;
 		while(1) { //client receiving code
 	        printf("while...");
+	        
 	        if((numbytes = recv(new_socket, buffer, bufsize, 0)) == -1){
 	            printf("recv error: %d", numbytes);
 	            exit(1);
@@ -61,18 +64,38 @@ int main(){
 	        	char* pcontent = strstr((char*)buffer,"Content-Length:");
 	        	    // get the length of the data
 	        	conlen = atoi(pcontent+15);
+	        	// char end[] = {buffer[numbytes-1], buffer[numbytes-2], buffer[numbytes-3], buffer[numbytes-1]};
+	        	end[0] = buffer[numbytes-4];
+	        	end[1] = buffer[numbytes-3];
+	        	end[2] = buffer[numbytes-2];
+	        	end[3] = buffer[numbytes-1];
+
+
 	        }
 
 	        // buffer[numbytes] = '\0'; 
-	        printf("numbytes is %d, full length is %d\n", numbytes, conlen);   
+	        printf("numbytes is %d, full length is %d\n", numbytes, conlen);
+	        // printf("end is: %s\n", end);
 	        // printf("last char, %d, %d, %d\n", buffer[numbytes-1], buffer[numbytes], buffer[numbytes+1]);
 	        // printf("received:\n%s\n", buffer);
 
-	        if(numbytes == 0 || conlen < numbytes){
+        	if(conlen == 0){
+        		printf("zero length POST");
+        		parsePassed = 0;
+        		break;
+        	}
+
+	        if(numbytes == 0 || ( conlen < numbytes && end != "\r\n\r\n")){
 	        	break;
 	        }
 	    }
-	    printf("buffer:\n%s", buffer);
+
+	    if(parsePassed == 0 || end == "\r\n\r\n"){
+	    	close(new_socket);
+	    	continue;
+	    }
+
+	    // printf("buffer:\n%s", buffer);
 		// printf("buffer before:\n%s", buffer);
 		// read content from socket
 		// ssize_t n;
@@ -96,13 +119,13 @@ int main(){
 		// tell the client to wait for a response
 		// write(new_socket, "HTTP/1.0 100 Continue\r\n", 28);
 
-		printf("buffer out:\n%s\n", buffer);
 		// parse body out of request
 		char *body = strstr(buffer,"\r\n\r\n");
 
 		// parse code from the json
 		cJSON *root = cJSON_Parse(body);
-		//printf("body:\n%s\n", body);
+		printf("body %c:\n%s\n", body[0], body);
+
 		char *code = cJSON_GetObjectItem(root, "code")->valuestring;
 
 		// set up code string for POPEN
