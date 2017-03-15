@@ -12,9 +12,7 @@
 int main(){
 	int create_socket, new_socket;
 	socklen_t addrlen;
-	int bufsize = 2048000;
 	int port = atoi( (getenv("runnerPort") != NULL) ? getenv("runnerPort") : "15000" );
-	char *buffer = malloc(bufsize);
 	struct sockaddr_in address;
 
 	if ((create_socket = socket(AF_INET, SOCK_STREAM, 0)) > 0){
@@ -34,6 +32,8 @@ int main(){
 
 	// loop waiting for client to connect
 	while (1){
+		// int bufsize = 2048000;
+		// char *buffer = malloc(bufsize);
 		if (listen(create_socket, 10) < 0) {
 			perror("server: listen");
 			exit(1);
@@ -48,17 +48,36 @@ int main(){
 			printf("The Client is connected...\n");
 		}
 
+		// printf("buffer before:\n%s", buffer);
 		// read content from socket
-		recv(new_socket, buffer, bufsize, 0);
+		// ssize_t n;
+		// char *p = buffer;
+		// while( (n = recv(new_socket, p, bufsize, 0)) > 0){
+		// 	p += n;
+		//	printf("buffer %zd loop:\n%s", n, p);
+		//	printf("buffer loop2:\n%s", buffer);
+		//	bufsize =- (size_t)n;
+		//	// printf("n? %zd", n);
+		// }
+		int bufsize = 2048;
+		char *headers = malloc(bufsize);
+		size_t hlen = recv(new_socket, headers, bufsize, 0);
+		printf("headers %zd:\n%s", hlen, headers);
 
+		int bufsize2 = 2048000;
+		char *body = malloc(bufsize2);
+		size_t blen = recv(new_socket, body, bufsize2, 0);
+		printf("body %zd:\n%s", blen, body);
 		// tell the client to wait for a response
 		// write(new_socket, "HTTP/1.0 100 Continue\r\n", 28);
 
+		// printf("buffer out:\n%s\n", buffer);
 		// parse body out of request
-		char *body = strstr(buffer,"\r\n\r\n");
+		// char *body = strstr(buffer,"\r\n\r\n");
 
 		// parse code from the json
 		cJSON *root = cJSON_Parse(body);
+		//printf("body:\n%s\n", body);
 		char *code = cJSON_GetObjectItem(root, "code")->valuestring;
 
 		// set up code string for POPEN
@@ -128,6 +147,8 @@ int main(){
 		// send response to client
 		write(new_socket, rex, strlen(rex));    
 		close(new_socket);
+		free(headers);
+		free(body);
 	}
 	close(create_socket);    
 	return 0;    
