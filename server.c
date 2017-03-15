@@ -10,7 +10,7 @@
 #include "cJSON/cJSON.h"
 
 int main(){
-	printf("crunner v4\n");
+	printf("crunner v4!\n");
 	int create_socket, new_socket;
 	socklen_t addrlen;
 	int port = atoi( (getenv("runnerPort") != NULL) ? getenv("runnerPort") : "15001" );
@@ -56,51 +56,58 @@ int main(){
 		int parsePassed = 1;
 		char *bufferPosition = buffer;
 		while(1) { //client receiving code
-	        printf("while...\n");
+			printf("while...\n");
+	        	if((numbytes = recv(new_socket, bufferPosition, bufsize, 0)) == -1){
+	            		printf("recv error: %d", numbytes);
+	            		exit(1);
+	        	}
 
-	        if((numbytes = recv(new_socket, bufferPosition, bufsize, 0)) == -1){
-	            printf("recv error: %d", numbytes);
-	            exit(1);
-	        }
-	        bufferPosition += numbytes;
-	        if(conlen == 0){
-	        	char* pcontent = strstr((char*)buffer,"Content-Length:");
-	        	    // get the length of the data
-	        	conlen = atoi(pcontent+15);
-	        	// char end[] = {buffer[numbytes-1], buffer[numbytes-2], buffer[numbytes-3], buffer[numbytes-1]};
-	        	end[0] = buffer[numbytes-4];
-	        	end[1] = buffer[numbytes-3];
-	        	end[2] = buffer[numbytes-2];
-	        	end[3] = buffer[numbytes-1];
+	        	bufferPosition += numbytes;
+                        end[0] = buffer[numbytes-4];
+                        end[1] = buffer[numbytes-3];
+                        end[2] = buffer[numbytes-2];
+                        end[3] = buffer[numbytes-1];
 
+	        	if(conlen == 0){
+	        		char* pcontent = strstr((char*)buffer,"Content-Length:");
+	        	    	// get the length of the data
+	        		conlen = atoi(pcontent+15);
+	        	}
 
-	        }
+	        	// buffer[numbytes] = '\0';
+	        	printf("recived bytes is %d, full content length is %d, buffersize is %d\n", numbytes, conlen, bufferPosition);
+			printf("end # %d, %d, %d, %d\n", end[0], end[1], end[2], end[3]);
+	        	// printf("end is: %s\n", end);
+	        	// printf("last char, %d, %d, %d\n", buffer[numbytes-1], buffer[numbytes], buffer[numbytes+1]);
+	        	printf("received:\n%s\n", buffer);
 
-	        // buffer[numbytes] = '\0'; 
-	        printf("numbytes is %d, full length is %d\n", numbytes, conlen);
-	        // printf("end is: %s\n", end);
-	        // printf("last char, %d, %d, %d\n", buffer[numbytes-1], buffer[numbytes], buffer[numbytes+1]);
-	        printf("received:\n%s\n", buffer);
+			// printf("checking len\n");
+        		if(conlen == 0){
+        			printf("zero length POST\n");
+        			parsePassed = 0;
+        			break;
+        		}
 
-        	if(conlen == 0){
-        		printf("zero length POST");
-        		parsePassed = 0;
-        		break;
-        	}
+			// printf("checking end\n");
+        		if(strncmp(end, "\r\n\r\n", 4) == 0){
+        			printf("end is 2 new lines, getting more\n");
+        			continue;
+        		}
 
-        	if(end == "\r\n\r\n"){
-        		printf("end is 2 new lines, getting more");
-        		continue;
-        	}
+			if(numbytes >= conlen){
+				printf("seemd to be done\n");
+				break;
+			}
 
-	        if(numbytes == 0 || (end != "\r\n\r\n" && numbytes >= conlen)){
-	        	printf("done with message");
-	        	break;
-	        }
-	        printf("should not get here...");
+			// printf("checking numbytes and len\n");
+	        	if(numbytes == 0 || numbytes >= conlen){
+	        		printf("done with message\n");
+	        		break;
+	        	}
+	        	printf("should not get here...");
 	    }
 
-	    if(parsePassed == 0 || end == "\r\n\r\n"){
+	    if(parsePassed == 0 || strncmp(buffer, "\r\n\r\n", 4) == 0){
 	    	printf("error in request");
 	    	close(new_socket);
 	    	continue;
