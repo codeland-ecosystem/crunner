@@ -11,6 +11,7 @@
 
 int main(){
 	printf("crunner v4!\n");
+
 	int create_socket, new_socket;
 	socklen_t addrlen;
 	int port = atoi( (getenv("runnerPort") != NULL) ? getenv("runnerPort") : "15000" );
@@ -36,6 +37,8 @@ int main(){
 		// get new memory
 		int buffer_size = 2048000;
 		char *buffer = malloc(buffer_size);
+		char *bufferPosition = buffer;
+
 		if (listen(create_socket, 10) < 0) {
 			perror("server: listen");
 			exit(1);
@@ -50,47 +53,58 @@ int main(){
 			printf("The Client is connected...\n");
 		}
 
-		int numbytes;
+		/*
+			loop over the socket until the whole message is received
+		*/
+		int bytes_from_socket;
 		int content_length = 0;
-		char end[4];
 		int parse_passed = 1;
-		char *bufferPosition = buffer;
-		int foundBody = 0;
-		char *body;
+		char *body = "";
 		while(1) { //client receiving code
-			printf("while...\n");
-			if((numbytes = recv(new_socket, bufferPosition, buffer_size, 0)) == -1){
-				printf("recv error: %d", numbytes);
+
+			if((bytes_from_socket = recv(new_socket, bufferPosition, buffer_size, 0)) == -1){
+				printf("recv error: %d", bytes_from_socket);
 				exit(1);
 			}
 
-			bufferPosition += numbytes;
+			// move the end of the buffer
+			bufferPosition += bytes_from_socket;
 
 			if(content_length == 0){
-				char* pcontent = strstr((char*)buffer,"Content-Length:");
+				/*
+					This should only happen once, after the content length is known
+				*/
+
 				// get the length of the data
+				char* pcontent = strstr((char*)buffer,"Content-Length:");
 				content_length = atoi(pcontent+15);
+
+				// dont write more then the buffer can handle
+				if(content_length > buffer_size){
+					printf("buffer overflow\n");
+					parse_passed = 0;
+					break;
+				}
+
+				// drop the connection if the content length is zero
+				if(content_length == 0){
+					printf("zero length POST\n");
+					parse_passed = 0;
+					break;
+				}
 			}
 
-			if(content_length > buffer_size){
-				printf("buffer overflow\n");
-				parse_passed = 0;
-				break;
+			if((body != NULL) && (body[0] == '\0')){
+				// parse body out of request
+				char *bodyStart = strstr(buffer,"\r\n\r\n");
+				body = &bodyStart[4];
 			}
-
-			// parse body out of request
-			char *bodyStart = strstr(buffer,"\r\n\r\n");
-			body = &bodyStart[4];
-			int body_length = strlen(body);
 			
-			printf("recived bytes is %d, full content length is %d body is %d\n", numbytes, content_length, strlen(body));
+			// cache the length of the body
+			int body_length = strlen(body);
 
-			if(content_length == 0){
-				printf("zero length POST\n");
-				parse_passed = 0;
-				break;
-			}
-
+			// some debug info
+			printf("received bytes is %d, full content length is %d, body is %d\n", bytes_from_socket, content_length, strlen(body));
 
 			if(body && body_length > content_length){
 				printf("body over flow\n");
@@ -99,10 +113,10 @@ int main(){
 			}
 
 			if(body && body_length == content_length){
-				printf("break\n");
+				// printf("received full body\n");
 				break;
 			}else{
-				printf("%d continue\n", body_length);
+				// printf("read more from buffer");
 				continue;
 			}
 
