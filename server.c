@@ -13,7 +13,7 @@ int main(){
 	printf("crunner v4!\n");
 	int create_socket, new_socket;
 	socklen_t addrlen;
-	int port = atoi( (getenv("runnerPort") != NULL) ? getenv("runnerPort") : "15001" );
+	int port = atoi( (getenv("runnerPort") != NULL) ? getenv("runnerPort") : "15000" );
 	struct sockaddr_in address;
 
 	if ((create_socket = socket(AF_INET, SOCK_STREAM, 0)) > 0){
@@ -33,8 +33,9 @@ int main(){
 
 	// loop waiting for client to connect
 	while (1){
-		int bufsize = 2048000;
-		char *buffer = malloc(bufsize);
+		// get new memory
+		int buffer_size = 2048000;
+		char *buffer = malloc(buffer_size);
 		if (listen(create_socket, 10) < 0) {
 			perror("server: listen");
 			exit(1);
@@ -50,95 +51,70 @@ int main(){
 		}
 
 		int numbytes;
-		int recvlen = 0;
-		int conlen = 0;
+		int content_length = 0;
 		char end[4];
-		int parsePassed = 1;
+		int parse_passed = 1;
 		char *bufferPosition = buffer;
+		int foundBody = 0;
+		char *body;
 		while(1) { //client receiving code
 			printf("while...\n");
-			if((numbytes = recv(new_socket, bufferPosition, bufsize, 0)) == -1){
+			if((numbytes = recv(new_socket, bufferPosition, buffer_size, 0)) == -1){
 				printf("recv error: %d", numbytes);
 				exit(1);
 			}
 
 			bufferPosition += numbytes;
-				end[0] = buffer[numbytes-4];
-				end[1] = buffer[numbytes-3];
-				end[2] = buffer[numbytes-2];
-				end[3] = buffer[numbytes-1];
 
-			if(conlen == 0){
+			if(content_length == 0){
 				char* pcontent = strstr((char*)buffer,"Content-Length:");
-					// get the length of the data
-				conlen = atoi(pcontent+15);
+				// get the length of the data
+				content_length = atoi(pcontent+15);
 			}
 
-			// buffer[numbytes] = '\0';
-			printf("recived bytes is %d, full content length is %d, total received is %d\n", numbytes, conlen, recvlen);
-			printf("end # %d, %d, %d, %d\n", end[0], end[1], end[2], end[3]);
-			// printf("end is: %s\n", end);
-			// printf("last char, %d, %d, %d\n", buffer[numbytes-1], buffer[numbytes], buffer[numbytes+1]);
-			printf("received:\n%s\n", buffer);
-
-			// printf("checking len\n");
-			if(conlen == 0){
-				printf("zero length POST\n");
-				parsePassed = 0;
+			if(content_length > buffer_size){
+				printf("buffer overflow\n");
+				parse_passed = 0;
 				break;
 			}
 
-			// printf("checking end\n");
-			if(strncmp(end, "\r\n\r\n", 4) == 0){
-				printf("end is 2 new lines, getting more\n");
+			// parse body out of request
+			char *bodyStart = strstr(buffer,"\r\n\r\n");
+			body = &bodyStart[4];
+			int body_length = strlen(body);
+			
+			printf("recived bytes is %d, full content length is %d body is %d\n", numbytes, content_length, strlen(body));
+
+			if(content_length == 0){
+				printf("zero length POST\n");
+				parse_passed = 0;
+				break;
+			}
+
+
+			if(body && body_length > content_length){
+				printf("body over flow\n");
+				parse_passed = 0;
+				break;
+			}
+
+			if(body && body_length == content_length){
+				printf("break\n");
+				break;
+			}else{
+				printf("%d continue\n", body_length);
 				continue;
 			}
 
-			if(numbytes >= conlen){
-				printf("seemd to be done\n");
-				break;
-			}
-
-			// printf("checking numbytes and len\n");
-			if(numbytes == 0 || numbytes >= conlen){
-				printf("done with message\n");
-				break;
-			}
-			printf("should not get here...");
+			printf("should not get here...\n");
 		}
 
-		if(parsePassed == 0 || strncmp(buffer, "\r\n\r\n", 4) == 0){
-			printf("error in request");
+		// if there are errors in parsing, kill the socket.
+		if(parse_passed == 0){
+			printf("error in request\n");
 			close(new_socket);
 			continue;
 		}
-
-		// printf("buffer:\n%s", buffer);
-		// printf("buffer before:\n%s", buffer);
-		// read content from socket
-		// ssize_t n;
-		// char *p = buffer;
-		// while( (n = recv(new_socket, p, bufsize, 0)) > 0){
-		// 	p += n;
-		//	printf("buffer %zd loop:\n%s", n, p);
-		//	printf("buffer loop2:\n%s", buffer);
-		//	bufsize =- (size_t)n;
-		//	// printf("n? %zd", n);
-		// }
-		// int bufsize = 2048;
-		// char *headers = malloc(bufsize);
-		// size_t hlen = recv(new_socket, headers, bufsize, 0);
-		// printf("headers %zd:\n%s", hlen, headers);
-
-		// int bufsize2 = 2048000;
-		// char *body = malloc(bufsize2);
-		// size_t blen = recv(new_socket, body, bufsize2, 0);
-		// printf("body %zd:\n%s", blen, body);
-		// tell the client to wait for a response
-		// write(new_socket, "HTTP/1.0 100 Continue\r\n", 28);
-
-		// parse body out of request
-		char *body = strstr(buffer,"\r\n\r\n");
 
 		// parse code from the json
 		cJSON *root = cJSON_Parse(body);
