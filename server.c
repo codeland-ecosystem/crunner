@@ -10,7 +10,7 @@
 #include "cJSON/cJSON.h"
 
 int main(){
-	printf("crunner v5 September 30, 2023!\n");
+	printf("crunner v5 -- September 30, 2023!\n");
 
 	int create_socket, new_socket;
 	socklen_t addrlen;
