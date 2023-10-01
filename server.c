@@ -10,7 +10,7 @@
 #include "cJSON/cJSON.h"
 
 int main(){
-	printf("crunner v4!\n");
+	printf("crunner v5 September 30, 2023!\n");
 
 	int create_socket, new_socket;
 	socklen_t addrlen;
@@ -56,7 +56,7 @@ int main(){
 		/*
 			loop over the socket until the whole message is received
 		*/
-		int bytes_from_socket;
+		int bytes_from_socket = 0;
 		int content_length = 0;
 		int parse_passed = 1;
 		char *body = "";
@@ -75,9 +75,19 @@ int main(){
 					This should only happen once, after the content length is known
 				*/
 
+				// Check to see if this i a POST method
+				// All we need to do is check the first character in the buffer
+				// (body) and see if its P, ASCII 80
+				if(buffer[0] != 80){
+					parse_passed = 0;
+					printf("Method is not post: %d\n", buffer[0]);
+					break;
+				}
+
 				// get the length of the data
-				char* pcontent = strstr((char*)buffer,"Content-Length:");
+				char* pcontent = strstr((char*)buffer, "Content-Length:");
 				content_length = atoi(pcontent+15);
+
 
 				// dont write more then the buffer can handle
 				if(content_length > buffer_size){
@@ -104,7 +114,7 @@ int main(){
 			int body_length = strlen(body);
 
 			// some debug info
-			printf("received bytes is %d, full content length is %d, body is %d\n", bytes_from_socket, content_length, strlen(body));
+			printf("received bytes is %d, full content length is %d, body is %d\n", bytes_from_socket, content_length, body_length);
 
 			if(body && body_length > content_length){
 				printf("body over flow\n");
