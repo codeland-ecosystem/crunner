@@ -10,7 +10,7 @@
 #include "cJSON/cJSON.h"
 
 int main(){
-	printf("crunner v6 -- September 30, 2023!\n");
+	printf("crunner v7 -- September 30, 2023!\n");
 
 	int create_socket, new_socket;
 	int buffer_size = 2048000;
@@ -38,6 +38,10 @@ int main(){
 		// get new memory
 		char *buffer = malloc(buffer_size);
 		char *bufferPosition = buffer;
+		int bytes_from_socket = 0;
+		int content_length = 0;
+		int parse_passed = 1;
+		char *body = "";
 
 		if (listen(create_socket, 10) < 0) {
 			perror("server: listen");
@@ -56,20 +60,15 @@ int main(){
 		/*
 			loop over the socket until the whole message is received
 		*/
-		int bytes_from_socket = 0;
-		int content_length = 0;
-		int parse_passed = 1;
-		char *body = "";
 		while(1) { //client receiving code
 
 			if((bytes_from_socket = recv(new_socket, bufferPosition, buffer_size, 0)) == -1){
 				printf("recv error: %d", bytes_from_socket);
 				exit(1);
 			}
+
 			// move the end of the buffer
 			bufferPosition += bytes_from_socket;
-
-
 
 			if(content_length == 0){
 				/*
@@ -124,6 +123,8 @@ int main(){
 
 			if(body && body_length > content_length){
 				printf("body over flow\n");
+				// printf("%d, %d\n", body_length, content_length);
+				// printf("body:\n%s\n", body);
 				parse_passed = 0;
 				break;
 			}
@@ -143,7 +144,6 @@ int main(){
 		if(parse_passed == 0){
 			printf("error in request\n");
 			close(new_socket);
-			free(buffer);
 			continue;
 		}
 
@@ -152,14 +152,12 @@ int main(){
 
 		// Make sure the code key exists in the JSON
 		if (!cJSON_GetObjectItem(root,"code")){
-			printf("No code found\n");
+			printf("No code key found\n");
 			close(new_socket);
-			free(buffer);
 			continue;
 		}
 		
 		char *code = cJSON_GetObjectItem(root, "code")->valuestring;
-
 
 		// set up code string for POPEN
 		char codeToRun[strlen(code)+15];
@@ -225,6 +223,7 @@ int main(){
 		strcat(rex, "\r\n\r\n");
 		strcat(rex, rjson);
 
+		printf("At the end");
 		// send response to client
 		write(new_socket, rex, strlen(rex));    
 		close(new_socket);
