@@ -49,8 +49,6 @@ int main(){
 		char *body = malloc(1);  // Initialize with space for '\0'
 		body[0] = '\0';
 
-		printf("top buffer:\n%s\nbody:\n%s\n", buffer, body);
-
 		if (listen(create_socket, 10) < 0) {
 			perror("server: listen");
 			exit(1);
@@ -160,7 +158,6 @@ int main(){
 
 			printf("should not get here...\n");
 		}
-		printf("down buffer:\n%s\nbody:\n%s\n", buffer, body);
 
 		// if there are errors in parsing, kill the socket.
 		if(parse_passed == 0){
