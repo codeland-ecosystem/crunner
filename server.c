@@ -10,7 +10,7 @@
 #include "cJSON/cJSON.h"
 
 int main(){
-	printf("crunner v7 -- September 30, 2023!\n");
+	printf("crunner v8 -- September 30, 2023!\n");
 
 	int create_socket, new_socket;
 	int buffer_size = 2048000;
@@ -144,19 +144,24 @@ int main(){
 		if(parse_passed == 0){
 			printf("error in request\n");
 			close(new_socket);
+			free(buffer);
 			continue;
 		}
 
-		// parse code from the json
+
+
+		// Parse code from the JSON
 		cJSON *root = cJSON_Parse(body);
 
-		// Make sure the code key exists in the JSON
-		if (!cJSON_GetObjectItem(root,"code")){
-			printf("No code key found\n");
-			close(new_socket);
-			continue;
+		// Check if the "code" key exists in the JSON
+		cJSON *existingCode = cJSON_GetObjectItem(root, "code");
+
+		if (existingCode == NULL) {
+		    // If it doesn't exist, add "code" as a string
+		    cJSON_AddStringToObject(root, "code", "exit 0");
 		}
-		
+
+		// Retrieve the "code" value as a string
 		char *code = cJSON_GetObjectItem(root, "code")->valuestring;
 
 		// set up code string for POPEN
@@ -223,7 +228,6 @@ int main(){
 		strcat(rex, "\r\n\r\n");
 		strcat(rex, rjson);
 
-		printf("At the end");
 		// send response to client
 		write(new_socket, rex, strlen(rex));    
 		close(new_socket);
