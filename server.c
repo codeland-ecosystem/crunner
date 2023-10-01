@@ -10,9 +10,10 @@
 #include "cJSON/cJSON.h"
 
 int main(){
-	printf("crunner v5 -- September 30, 2023!\n");
+	printf("crunner v6 -- September 30, 2023!\n");
 
 	int create_socket, new_socket;
+	int buffer_size = 2048000;
 	socklen_t addrlen;
 	int port = atoi( (getenv("runnerPort") != NULL) ? getenv("runnerPort") : "15000" );
 	struct sockaddr_in address;
@@ -35,7 +36,6 @@ int main(){
 	// loop waiting for client to connect
 	while (1){
 		// get new memory
-		int buffer_size = 2048000;
 		char *buffer = malloc(buffer_size);
 		char *bufferPosition = buffer;
 
@@ -66,9 +66,10 @@ int main(){
 				printf("recv error: %d", bytes_from_socket);
 				exit(1);
 			}
-
 			// move the end of the buffer
 			bufferPosition += bytes_from_socket;
+
+
 
 			if(content_length == 0){
 				/*
@@ -79,15 +80,20 @@ int main(){
 				// All we need to do is check the first character in the buffer
 				// (body) and see if its P, ASCII 80
 				if(buffer[0] != 80){
-					parse_passed = 0;
 					printf("Method is not post: %d\n", buffer[0]);
+					parse_passed = 0;
+					content_length = 1;
 					break;
 				}
 
-				// get the length of the data
-				char* pcontent = strstr((char*)buffer, "Content-Length:");
-				content_length = atoi(pcontent+15);
-
+				// Check for content length in the header
+				if (strstr(buffer, "Content-Length:") == NULL) {
+					parse_passed = 0;
+					break;
+				}else{
+					char* pcontent = strstr((char*)buffer, "Content-Length:");
+					content_length = atoi(pcontent+15);
+				}
 
 				// dont write more then the buffer can handle
 				if(content_length > buffer_size){
@@ -98,7 +104,7 @@ int main(){
 
 				// drop the connection if the content length is zero
 				if(content_length == 0){
-					printf("zero length POST\n");
+					printf("zero length\n");
 					parse_passed = 0;
 					break;
 				}
@@ -137,14 +143,23 @@ int main(){
 		if(parse_passed == 0){
 			printf("error in request\n");
 			close(new_socket);
+			free(buffer);
 			continue;
 		}
 
 		// parse code from the json
 		cJSON *root = cJSON_Parse(body);
-		// printf("body %c:\n%s\n", body[0], body);
 
+		// Make sure the code key exists in the JSON
+		if (!cJSON_GetObjectItem(root,"code")){
+			printf("No code found\n");
+			close(new_socket);
+			free(buffer);
+			continue;
+		}
+		
 		char *code = cJSON_GetObjectItem(root, "code")->valuestring;
+
 
 		// set up code string for POPEN
 		char codeToRun[strlen(code)+15];
