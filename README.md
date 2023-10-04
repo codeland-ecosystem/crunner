@@ -1,6 +1,3 @@
-Certainly, here's a README.md for your repository, which includes information about the "runner" code and how it's used with the CodeLand Manager:
-
-```markdown
 # CodeLand Runner
 
 ## Introduction
@@ -50,4 +47,3 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ---
 
 *This README was generated with ❤️ by an AI language model.*
-```
