@@ -8,9 +8,12 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include "cJSON/cJSON.h"
+#include <iostream>
+#include <stdexcept>
+
 
 int main(){
-	printf("crunner v9 -- November 1, 2023!\n");
+	printf("crunner v10 -- October 13, 2023!\n");
 
 	int create_socket, new_socket;
 	int buffer_size = 2048000;
@@ -36,17 +39,17 @@ int main(){
 	}
 
 	// loop waiting for client to connect
-	while (1){
+	while (1){try{
 
 
-        // Set the flag to indicate that a client is being served
+		// Set the flag to indicate that a client is being served
 
-		char *buffer = malloc(buffer_size);
+		char* buffer = new char[buffer_size];
 		char *bufferPosition = buffer;
 		int bytes_from_socket = 0;
 		int content_length = 0;
 		int parse_passed = 1;
-		char *body = malloc(1);  // Initialize with space for '\0'
+		char* body = static_cast<char*>(malloc(1));  // Initialize with space for '\0'
 		body[0] = '\0';
 
 		if (listen(create_socket, 10) < 0) {
@@ -118,21 +121,21 @@ int main(){
 
 
 			// Reset and allocate memory for body at the beginning of each loop iteration
-		    free(body);
-		    body = malloc(content_length + 1);  // Allocate memory for body (+1 for '\0')
-		    if (body == NULL) {
-		        // Handle memory allocation error
-		        perror("Memory allocation error");
-		        exit(1);
-		    }
+			free(body);
+			body = new char[content_length + 1];  // Allocate memory for body (+1 for '\0')
+			if (body == NULL) {
+				// Handle memory allocation error
+				perror("Memory allocation error");
+				exit(1);
+			}
 
-		    // Parse body out of request
-		    char *bodyStart = strstr(buffer, "\r\n\r\n");
-		    if (bodyStart != NULL) {
-		        bodyStart += 4;
-		        strncpy(body, bodyStart, content_length);
-		        body[content_length] = '\0';  // Null-terminate the string
-		    }
+			// Parse body out of request
+			char *bodyStart = strstr(buffer, "\r\n\r\n");
+			if (bodyStart != NULL) {
+				bodyStart += 4;
+				strncpy(body, bodyStart, content_length);
+				body[content_length] = '\0';  // Null-terminate the string
+			}
 
 
 			int body_length = strlen(body);
@@ -162,7 +165,7 @@ int main(){
 		// if there are errors in parsing, kill the socket.
 		if(parse_passed == 0){
 			printf("error in request\n");
-			body = "";
+			std::string body = ""; // Create an empty string //body = "";
 			free(buffer);
 			close(new_socket);
 			continue;
@@ -177,8 +180,8 @@ int main(){
 		cJSON *existingCode = cJSON_GetObjectItem(root, "code");
 
 		if (existingCode == NULL) {
-		    // If it doesn't exist, add "code" as a string
-		    cJSON_AddStringToObject(root, "code", "exit 0");
+			// If it doesn't exist, add "code" as a string
+			cJSON_AddStringToObject(root, "code", "exit 0");
 		}
 
 		// Retrieve the "code" value as a string
@@ -212,7 +215,7 @@ int main(){
 			/* Check if we need to expand. */
 			if (size <= index) {
 				size += 50;
-				tmp = realloc(line, size);
+				char* tmp = static_cast<char*>(realloc(line, size));
 				if (!tmp) {
 					free(line);
 					line = NULL;
@@ -232,11 +235,17 @@ int main(){
 		printf("\npopen code: %d\n",pclose(fp));
 
 		// Format JSON response
-		char rjson[strlen(line)+20];
+		//char rjson[strlen(line)+20];
+
+		char *rjson = (char *)malloc(strlen(line)+20);
+		if (rjson == NULL) {
+			fprintf(stderr, "Memory allocation failed\n");
+			return 1;
+		}
 		strcpy(rjson,"{\"res\":\"");
 		strcat(rjson, line);
 		strcat(rjson,"\"}\0");
-		
+
 		free(line);
 
 		int rjsonLength = strlen(rjson)+0;
@@ -244,18 +253,32 @@ int main(){
 		sprintf(rjsonLength_char, "%d", rjsonLength);
 		
 		// format headers and add body
-		char rex[rjsonLength+105];
+		// Allocate memory for 'rex' on the heap
+		char *rex = (char *)malloc(rjsonLength + 156);
+		if (rex == NULL) {
+			fprintf(stderr, "Memory allocation failed\n");
+			return 1;
+		}
 		strcpy(rex, "HTTP/1.0 200 OK\r\n");
 		strcat(rex, "Content-Type: application/json\r\n");
 		strcat(rex, "Content-Length: ");
 		strcat(rex, rjsonLength_char);
 		strcat(rex, "\r\n\r\n");
 		strcat(rex, rjson);
+		free(rjson);
 
 		// send response to client
 		write(new_socket, rex, strlen(rex));    
+		free(rex);
 		free(buffer);
 		close(new_socket);
+	} catch (const std::exception& e) {
+		// close(new_socket);
+		printf("in catch\n");
+		close(create_socket);    
+		return 0;  
+	}
+
 	}
 	close(create_socket);    
 	return 0;    
