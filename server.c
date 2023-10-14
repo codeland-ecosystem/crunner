@@ -10,12 +10,15 @@
 #include "cJSON/cJSON.h"
 
 int main(){
-	printf("crunner v4!\n");
+	printf("crunner v9 -- November 1, 2023!\n");
 
 	int create_socket, new_socket;
+	int buffer_size = 2048000;
 	socklen_t addrlen;
 	int port = atoi( (getenv("runnerPort") != NULL) ? getenv("runnerPort") : "15000" );
 	struct sockaddr_in address;
+
+	// Add a flag to indicate whether a client is being served
 
 	if ((create_socket = socket(AF_INET, SOCK_STREAM, 0)) > 0){
 		printf("The socket was created\n");
@@ -34,10 +37,17 @@ int main(){
 
 	// loop waiting for client to connect
 	while (1){
-		// get new memory
-		int buffer_size = 2048000;
+
+
+        // Set the flag to indicate that a client is being served
+
 		char *buffer = malloc(buffer_size);
 		char *bufferPosition = buffer;
+		int bytes_from_socket = 0;
+		int content_length = 0;
+		int parse_passed = 1;
+		char *body = malloc(1);  // Initialize with space for '\0'
+		body[0] = '\0';
 
 		if (listen(create_socket, 10) < 0) {
 			perror("server: listen");
@@ -56,10 +66,6 @@ int main(){
 		/*
 			loop over the socket until the whole message is received
 		*/
-		int bytes_from_socket;
-		int content_length = 0;
-		int parse_passed = 1;
-		char *body = "";
 		while(1) { //client receiving code
 
 			if((bytes_from_socket = recv(new_socket, bufferPosition, buffer_size, 0)) == -1){
@@ -75,9 +81,24 @@ int main(){
 					This should only happen once, after the content length is known
 				*/
 
-				// get the length of the data
-				char* pcontent = strstr((char*)buffer,"Content-Length:");
-				content_length = atoi(pcontent+15);
+				// Check to see if this i a POST method
+				// All we need to do is check the first character in the buffer
+				// (body) and see if its P, ASCII 80
+				if(buffer[0] != 80){
+					printf("Method is not post: %d\n", buffer[0]);
+					parse_passed = 0;
+					content_length = 1;
+					break;
+				}
+
+				// Check for content length in the header
+				if (strstr(buffer, "Content-Length:") == NULL) {
+					parse_passed = 0;
+					break;
+				}else{
+					char* pcontent = strstr((char*)buffer, "Content-Length:");
+					content_length = atoi(pcontent+15);
+				}
 
 				// dont write more then the buffer can handle
 				if(content_length > buffer_size){
@@ -88,26 +109,41 @@ int main(){
 
 				// drop the connection if the content length is zero
 				if(content_length == 0){
-					printf("zero length POST\n");
+					printf("zero length\n");
 					parse_passed = 0;
 					break;
 				}
 			}
 
-			if((body != NULL) && (body[0] == '\0')){
-				// parse body out of request
-				char *bodyStart = strstr(buffer,"\r\n\r\n");
-				body = &bodyStart[4];
-			}
-			
-			// cache the length of the body
+
+
+			// Reset and allocate memory for body at the beginning of each loop iteration
+		    free(body);
+		    body = malloc(content_length + 1);  // Allocate memory for body (+1 for '\0')
+		    if (body == NULL) {
+		        // Handle memory allocation error
+		        perror("Memory allocation error");
+		        exit(1);
+		    }
+
+		    // Parse body out of request
+		    char *bodyStart = strstr(buffer, "\r\n\r\n");
+		    if (bodyStart != NULL) {
+		        bodyStart += 4;
+		        strncpy(body, bodyStart, content_length);
+		        body[content_length] = '\0';  // Null-terminate the string
+		    }
+
+
 			int body_length = strlen(body);
 
 			// some debug info
-			printf("received bytes is %d, full content length is %d, body is %d\n", bytes_from_socket, content_length, strlen(body));
+			printf("received bytes is %d, full content length is %d, body is %d\n", bytes_from_socket, content_length, body_length);
 
 			if(body && body_length > content_length){
 				printf("body over flow\n");
+				// printf("%d, %d\n", body_length, content_length);
+				// printf("body:\n%s\n", body);
 				parse_passed = 0;
 				break;
 			}
@@ -126,20 +162,34 @@ int main(){
 		// if there are errors in parsing, kill the socket.
 		if(parse_passed == 0){
 			printf("error in request\n");
+			body = "";
+			free(buffer);
 			close(new_socket);
 			continue;
 		}
 
-		// parse code from the json
-		cJSON *root = cJSON_Parse(body);
-		// printf("body %c:\n%s\n", body[0], body);
 
+
+		// Parse code from the JSON
+		cJSON *root = cJSON_Parse(body);
+
+		// Check if the "code" key exists in the JSON
+		cJSON *existingCode = cJSON_GetObjectItem(root, "code");
+
+		if (existingCode == NULL) {
+		    // If it doesn't exist, add "code" as a string
+		    cJSON_AddStringToObject(root, "code", "exit 0");
+		}
+
+		// Retrieve the "code" value as a string
 		char *code = cJSON_GetObjectItem(root, "code")->valuestring;
 
 		// set up code string for POPEN
 		char codeToRun[strlen(code)+15];
 		strcpy(codeToRun, code);
 		strcat(codeToRun, " 2>&1|base64");
+
+		cJSON_Delete(root);
 
 		// set up POPEN
 		FILE *fp;
@@ -187,6 +237,8 @@ int main(){
 		strcat(rjson, line);
 		strcat(rjson,"\"}\0");
 		
+		free(line);
+
 		int rjsonLength = strlen(rjson)+0;
 		char rjsonLength_char[20];
 		sprintf(rjsonLength_char, "%d", rjsonLength);
@@ -202,8 +254,8 @@ int main(){
 
 		// send response to client
 		write(new_socket, rex, strlen(rex));    
-		close(new_socket);
 		free(buffer);
+		close(new_socket);
 	}
 	close(create_socket);    
 	return 0;    
